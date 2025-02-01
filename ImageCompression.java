@@ -54,11 +54,9 @@ public class ImageCompression {
     }
 
     public static class WholeFileInputFormat extends FileInputFormat<Text, BytesWritable> {
-        @Override
         protected boolean isSplitable(org.apache.hadoop.fs.FileSystem fs, Path file) {
             return false;
         }
-        
         public RecordReader<Text, BytesWritable> createRecordReader(
                 InputSplit split, TaskAttemptContext context) {
             return new WholeFileRecordReader();
@@ -69,7 +67,6 @@ public class ImageCompression {
             private BytesWritable value = new BytesWritable();
             private FSDataInputStream fis;
             private long fileLength;
-            @Override
             public void initialize(InputSplit split, TaskAttemptContext context) throws IOException {
                 Path file = ((org.apache.hadoop.mapreduce.lib.input.FileSplit) split).getPath();
                 org.apache.hadoop.fs.FileSystem fs = file.getFileSystem(context.getConfiguration());
@@ -77,7 +74,6 @@ public class ImageCompression {
                 fileLength = fs.getFileStatus(file).getLen();
                 key.set(file.toString());
             }
-            @Override
             public boolean nextKeyValue() throws IOException {
                 if (!processed) {
                     byte[] contents = new byte[(int) fileLength];
@@ -88,19 +84,15 @@ public class ImageCompression {
                 }
                 return false;
             }
-            @Override
             public Text getCurrentKey() {
                 return key;
             }
-            @Override
             public BytesWritable getCurrentValue() {
                 return value;
             }
-            @Override
             public float getProgress() {
                 return processed ? 1.0f : 0.0f;
             }
-            @Override
             public void close() throws IOException {
                 if (fis != null) fis.close();
             }
