@@ -74,63 +74,62 @@ public class ImageCompression {
         public void close() { }
     }
 
-    public static class ImageCompressMapper 
-            extends Mapper<Text, BytesWritable, Text, BytesWritable> {
+    public static class ImageCompressionMapper
+            extends Mapper<Object, BytesWritable, Text, BytesWritable> {
 
-        @Override
-        public void map(Text key, BytesWritable value, Context context)
+        private Text imageName = new Text();
+
+        public void map(Object key, BytesWritable value, Context context)
                 throws IOException, InterruptedException {
-            context.write(key, value);
+            // Pass through the image data with its name as the key
+            imageName.set("image-chunk");
+            context.write(imageName, value);
         }
     }
 
-    public static class ImageCompressReducer 
+    public static class ImageCompressionReducer
             extends Reducer<Text, BytesWritable, Text, BytesWritable> {
 
-        @Override
         public void reduce(Text key, Iterable<BytesWritable> values, Context context)
                 throws IOException, InterruptedException {
             for (BytesWritable val : values) {
-                byte[] imageBytes = val.getBytes();
-                byte[] compressedBytes = compressImage(imageBytes, 0.5f);
-                context.write(key, new BytesWritable(compressedBytes));
+                // Convert BytesWritable to BufferedImage
+                ByteArrayInputStream bis = new ByteArrayInputStream(val.getBytes());
+                BufferedImage image = ImageIO.read(bis);
+                
+                // Compress the image
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
+                ImageWriteParam param = writer.getDefaultWriteParam();
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(0.5f);  // Set compression quality (0.0-1.0)
+                
+                writer.setOutput(ImageIO.createImageOutputStream(bos));
+                writer.write(null, new IIOImage(image, null, null), param);
+                
+                // Write compressed image
+                byte[] compressedImageData = bos.toByteArray();
+                context.write(key, new BytesWritable(compressedImageData));
+                
+                writer.dispose();
             }
-        }
-
-        private byte[] compressImage(byte[] imageData, float quality) throws IOException {
-            ByteArrayInputStream bis = new ByteArrayInputStream(imageData);
-            BufferedImage image = ImageIO.read(bis);
-
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
-            ImageWriteParam param = writer.getDefaultWriteParam();
-            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-            param.setCompressionQuality(quality);
-
-            ImageOutputStream ios = ImageIO.createImageOutputStream(bos);
-            writer.setOutput(ios);
-            writer.write(null, new IIOImage(image, null, null), param);
-
-            writer.dispose();
-            ios.close();
-            bis.close();
-
-            return bos.toByteArray();
         }
     }
 
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "image compression");
-        
         job.setJarByClass(ImageCompression.class);
-        job.setInputFormatClass(WholeFileInputFormat.class);
-        job.setMapperClass(ImageCompressMapper.class);
-        job.setReducerClass(ImageCompressReducer.class);
         
+        // Set classes
+        job.setMapperClass(ImageCompressionMapper.class);
+        job.setReducerClass(ImageCompressionReducer.class);
+        
+        // Set output types
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(BytesWritable.class);
         
+        // Set input/output paths
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         
