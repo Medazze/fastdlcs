@@ -1,9 +1,11 @@
-package imageC;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -17,39 +19,50 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 public class ImageCompression {
 
-    public static class ImageCompressionMapper 
+    public static class ImageCompressMapper 
             extends Mapper<Object, BytesWritable, Text, BytesWritable> {
-        
-        private final float compressionQuality = 0.5f;
-        
+
         public void map(Object key, BytesWritable value, Context context)
                 throws IOException, InterruptedException {
-            
-            // Convert byte array to BufferedImage
-            ByteArrayInputStream bais = new ByteArrayInputStream(value.getBytes());
-            BufferedImage image = ImageIO.read(bais);
-            
-            // Compress image
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "jpg", baos);
-            byte[] compressedBytes = baos.toByteArray();
-            
-            // Write compressed bytes
-            context.write(new Text("image"), new BytesWritable(compressedBytes));
+            byte[] imageBytes = value.getBytes();
+            Text fileName = new Text(key.toString());
+            context.write(fileName, new BytesWritable(imageBytes));
         }
     }
 
-    public static class ImageCompressionReducer 
+    public static class ImageCompressReducer 
             extends Reducer<Text, BytesWritable, Text, BytesWritable> {
-        
+
         public void reduce(Text key, Iterable<BytesWritable> values, Context context)
                 throws IOException, InterruptedException {
             
-            // Take the first compressed chunk as final result
             for (BytesWritable val : values) {
-                context.write(key, val);
-                break;
+                byte[] imageBytes = val.getBytes();
+                byte[] compressedBytes = compressImage(imageBytes, 0.5f);
+                context.write(key, new BytesWritable(compressedBytes));
             }
+        }
+
+        private byte[] compressImage(byte[] imageData, float quality) throws IOException {
+            ByteArrayInputStream bis = new ByteArrayInputStream(imageData);
+            BufferedImage image = ImageIO.read(bis);
+
+            ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(quality);
+
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ImageOutputStream ios = ImageIO.createImageOutputStream(bos);
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(image, null, null), param);
+            
+            writer.dispose();
+            ios.close();
+            bis.close();
+            
+            return bos.toByteArray();
         }
     }
 
@@ -58,8 +71,8 @@ public class ImageCompression {
         Job job = Job.getInstance(conf, "image compression");
         
         job.setJarByClass(ImageCompression.class);
-        job.setMapperClass(ImageCompressionMapper.class);
-        job.setReducerClass(ImageCompressionReducer.class);
+        job.setMapperClass(ImageCompressMapper.class);
+        job.setReducerClass(ImageCompressReducer.class);
         
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(BytesWritable.class);
