@@ -34,16 +34,23 @@ public class ImageCompression {
                 throws InterruptedException {
             try {
                 int originalSize = value.getLength();
+                System.out.println("Original image size: " + originalSize + " bytes");
+
                 ByteArrayInputStream bais = new ByteArrayInputStream(value.getBytes());
                 BufferedImage pngImage = ImageIO.read(bais);
+                if (pngImage == null) {
+                    System.err.println("Failed to read image: " + key.toString());
+                    return;
+                }
+
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ImageIO.write(pngImage, "jpeg", baos);
                 int compressedSize = baos.size();
-                System.out.println("Image size before compression: " + originalSize
-                        + " bytes, after compression: " + compressedSize + " bytes");
+                System.out.println("Compressed image size: " + compressedSize + " bytes");
+
                 context.write(key, new BytesWritable(baos.toByteArray()));
             } catch (Exception e) {
-                // Handle exceptions
+                e.printStackTrace();
             }
         }
     }
