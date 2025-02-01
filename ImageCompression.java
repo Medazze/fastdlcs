@@ -58,7 +58,7 @@ public class ImageCompression {
         protected boolean isSplitable(org.apache.hadoop.fs.FileSystem fs, Path file) {
             return false;
         }
-        @Override
+        
         public RecordReader<Text, BytesWritable> createRecordReader(
                 InputSplit split, TaskAttemptContext context) {
             return new WholeFileRecordReader();
