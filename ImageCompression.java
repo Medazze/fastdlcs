@@ -7,6 +7,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;  // Add this import
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.commons.io.IOUtils;
 
@@ -53,7 +54,9 @@ public class ImageCompression {
                     IOUtils.readFully(in, contents, 0, contents.length);
                     value.set(contents, 0, contents.length);
                 } finally {
-                    IOUtils.closeStream(in);
+                    if (in != null) {
+                        in.close();  // Changed from IOUtils.closeStream to direct close
+                    }
                 }
                 processed = true;
                 return true;
