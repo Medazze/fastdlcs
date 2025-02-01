@@ -11,8 +11,11 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 
 import javax.imageio.ImageIO;
+import javax.naming.Context;
+
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -113,6 +116,7 @@ public class ImageCompression {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(BytesWritable.class);
         job.setInputFormatClass(WholeFileInputFormat.class);
+        job.setOutputFormatClass(SequenceFileOutputFormat.class); // Use SequenceFileOutputFormat
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
         System.exit(job.waitForCompletion(true) ? 0 : 1);
