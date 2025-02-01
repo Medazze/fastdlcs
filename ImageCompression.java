@@ -30,10 +30,14 @@ public class ImageCompression {
         public void map(Text key, BytesWritable value, Context context)
                 throws InterruptedException {
             try {
+                int originalSize = value.getLength();
                 ByteArrayInputStream bais = new ByteArrayInputStream(value.getBytes());
                 BufferedImage pngImage = ImageIO.read(bais);
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ImageIO.write(pngImage, "jpeg", baos);
+                int compressedSize = baos.size();
+                System.out.println("Image size before compression: " + originalSize
+                        + " bytes, after compression: " + compressedSize + " bytes");
                 context.write(key, new BytesWritable(baos.toByteArray()));
             } catch (Exception e) {
                 // Handle exceptions
